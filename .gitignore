@@ -1,0 +1,6 @@
+# Never commit credentials
+ESP32_RLCD_Display/secrets.h
+
+# macOS
+.DS_Store
+**/.DS_Store

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Pencreus — RLCD Mockup</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+body {
+  background:#111;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  padding:24px;
+  font-family:'Share Tech Mono','Courier New',monospace;
+}
+
+.label {
+  color:#333;font-size:10px;letter-spacing:3px;
+  text-transform:uppercase;text-align:center;
+}
+
+/* ── State selector ── */
+.state-bar {
+  display:flex;gap:8px;align-items:center;
+}
+.state-btn {
+  background:#1e1e1e;border:1px solid #444;color:#666;
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:2px;padding:5px 14px;cursor:pointer;
+  transition:all .2s;text-transform:uppercase;
+}
+.state-btn.active { background:#2a2a2a;border-color:#aaa;color:#ddd9c8; }
+.state-btn:hover  { border-color:#888;color:#aaa; }
+
+/* ── Bezel ── */
+.bezel {
+  background:linear-gradient(160deg,#2e2e2e 0%,#252525 100%);
+  border-radius:14px;
+  padding:18px 22px 30px 22px;
+  box-shadow:0 0 0 1px #444,0 12px 50px rgba(0,0,0,.9),
+             inset 0 1px 0 rgba(255,255,255,.06);
+  position:relative;
+}
+.bezel-brand {
+  position:absolute;bottom:9px;left:50%;transform:translateX(-50%);
+  font-size:8px;color:#333;letter-spacing:2px;white-space:nowrap;
+}
+.leds { display:flex;gap:6px;justify-content:center;margin-top:10px; }
+.led { width:7px;height:7px;border-radius:50%;background:#1a1a1a;box-shadow:0 0 0 1px #333; }
+.led.g { background:#1f5c2e;box-shadow:0 0 6px #2a7,0 0 1px #2a7; }
+.led.a { background:#5c3d00;box-shadow:0 0 6px #c80,0 0 1px #c80; }
+
+/* ── Display surface ── */
+.display {
+  width:400px;height:300px;
+  background:#ddd9c8;
+  position:relative;overflow:hidden;
+  border:1.5px solid #888;
+  box-shadow:inset 0 0 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.display::after {
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(to bottom,
+    transparent 0,transparent 1px,rgba(0,0,0,.03) 1px,rgba(0,0,0,.03) 2px);
+  pointer-events:none;z-index:50;
+}
+.display::before {
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.15) 100%);
+  pointer-events:none;z-index:51;
+}
+
+/* ── Screen typography ── */
+.screen {
+  width:100%;height:100%;color:#1c1c1c;
+  font-family:'Share Tech Mono','Courier New',monospace;
+  position:absolute;top:0;left:0;font-size:10px;
+}
+
+/* HEADER */
+.hdr {
+  background:#1c1c1c;color:#ddd9c8;height:22px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 7px;font-size:10px;letter-spacing:1.8px;white-space:nowrap;
+}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.cur{animation:blink 1s step-end infinite;}
+
+hr{border:none;border-top:1px solid #1c1c1c;}
+.lbl{font-size:8.5px;letter-spacing:2px;opacity:.5;padding:1px 5px 0;}
+
+/* ZONE 1: Date + Clock — 74px */
+.z-dt {
+  display:grid;grid-template-columns:128px 1fr;
+  height:74px;
+}
+.date-col {
+  padding:6px 6px 4px 5px;border-right:1px solid #1c1c1c;
+  display:flex;flex-direction:column;justify-content:center;gap:2px;
+}
+.day    {font-size:16px;font-weight:bold;letter-spacing:3px;}
+.date   {font-size:10px;letter-spacing:1.5px;opacity:.85;}
+.ntptag {font-size:7.5px;letter-spacing:1.5px;opacity:.4;margin-top:3px;}
+.clock-col {
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;
+}
+#clock{font-size:38px;letter-spacing:1px;line-height:1;font-weight:bold;}
+.tz   {font-size:8.5px;letter-spacing:2px;opacity:.4;}
+
+/* ZONE 2: Weather — 72px */
+.z-wx {
+  display:grid;grid-template-columns:1fr 110px;
+  height:72px;padding:2px 4px 1px 5px;
+}
+.wx-l{}
+.wx-cond{font-size:12px;font-weight:bold;letter-spacing:.8px;margin-bottom:0;}
+.wx-temp{font-size:28px;font-weight:bold;line-height:1;}
+.wx-sub {font-size:9px;letter-spacing:.8px;opacity:.7;margin-top:2px;}
+.wx-r {
+  border-left:1px solid #1c1c1c;padding:4px 0 0 8px;
+  display:flex;flex-direction:column;gap:5px;
+}
+.wx-stat{display:flex;flex-direction:column;}
+.wx-stat .k{font-size:7.5px;letter-spacing:1.5px;opacity:.5;}
+.wx-stat .v{font-size:15px;font-weight:bold;}
+
+/* Sun row */
+.sun-row {
+  display:flex;gap:10px;margin-top:3px;font-size:8px;letter-spacing:.8px;opacity:.7;
+}
+.sun-item{display:flex;align-items:center;gap:3px;}
+
+/* ZONE 3: Indoor + ORB — 98px (status bar takes remaining 10px) */
+.z-in {
+  display:grid;grid-template-columns:155px 1fr;
+  height:98px;
+}
+.in-data {
+  padding:5px 6px 4px 5px;
+  display:flex;flex-direction:column;justify-content:center;gap:7px;
+}
+.in-row {
+  display:flex;align-items:baseline;gap:6px;
+}
+.in-key{font-size:8.5px;letter-spacing:1.5px;opacity:.5;min-width:34px;}
+.in-val{font-size:19px;font-weight:bold;}
+.orb-zone {
+  border-left:1px solid #1c1c1c;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+
+/* STATUS BAR — 10px (thin strip) */
+.status-bar {
+  position:absolute;bottom:0;left:0;right:0;height:10px;
+  border-top:1px solid #1c1c1c;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 5px;font-size:6.5px;letter-spacing:1.2px;opacity:.6;
+}
+.s-dot{display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:#1c1c1c;margin-right:3px;vertical-align:middle;}
+
+/* Brand name — Orbitron for the header title */
+.brand-name {
+  font-family: 'Orbitron', monospace;
+  font-weight: 900;
+  letter-spacing: 4px;
+  font-size: 13px;
+}
+
+/* ══════════════════════════════════════════
+   SPLASH SCREEN — overlays the display
+   ══════════════════════════════════════════ */
+.splash {
+  position: absolute;
+  inset: 0;
+  background: #ddd9c8;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* Double-border frame */
+.splash::before {
+  content:'';
+  position:absolute;
+  inset:5px;
+  border:1.5px solid #1c1c1c;
+  pointer-events:none;
+  z-index:201;
+}
+.splash::after {
+  content:'';
+  position:absolute;
+  inset:9px;
+  border:.5px solid #1c1c1c;
+  pointer-events:none;
+  z-index:201;
+}
+
+.splash-char {
+  width: 130px;
+  margin-top: 18px;
+  filter: brightness(0);
+}
+
+.splash-title {
+  font-family: 'Orbitron', monospace;
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: 4px;
+  color: #1c1c1c;
+  margin-top: 10px;
+  line-height: 1;
+}
+
+.splash-rule {
+  width: 280px;
+  border: none;
+  border-top: 1.5px solid #1c1c1c;
+  margin: 8px 0 6px;
+}
+.splash-rule2 {
+  width: 280px;
+  border: none;
+  border-top: .5px solid #1c1c1c;
+  margin-bottom: 10px;
+}
+
+.splash-boot {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 1.5px;
+  color: #1c1c1c;
+  opacity: .6;
+  text-align: center;
+  line-height: 1.8;
+}
+
+.splash-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: #1c1c1c;
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: progress-fill 2.8s linear forwards;
+}
+@keyframes progress-fill {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+/* Slide the splash UP to reveal main UI */
+@keyframes splash-exit {
+  0%   { transform: translateY(0);    opacity: 1; }
+  80%  { transform: translateY(0);    opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+.splash.exiting {
+  animation: splash-exit .45s ease-in forwards;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════
+   ORB  — SVG canvas element
+   ═══════════════════════════════════════════ */
+#orb-canvas {
+  width:100%;height:100%;
+}
+
+/* Listening ring pulses */
+@keyframes ring-pulse {
+  0%   { r:30; opacity:.8; }
+  100% { r:62; opacity:0;  }
+}
+.ring1 { animation: ring-pulse 1.4s ease-out infinite; }
+.ring2 { animation: ring-pulse 1.4s ease-out .46s infinite; }
+.ring3 { animation: ring-pulse 1.4s ease-out .92s infinite; }
+
+/* Respond wave (horizontal speech arc) */
+@keyframes speech-wave {
+  0%   { opacity:1; transform:translateX(0) scaleX(.2); }
+  100% { opacity:0; transform:translateX(18px) scaleX(1.2); }
+}
+.sw1 { animation: speech-wave 1s ease-out infinite; }
+.sw2 { animation: speech-wave 1s ease-out .33s infinite; }
+.sw3 { animation: speech-wave 1s ease-out .66s infinite; }
+
+/* Orb float bob */
+@keyframes float-bob {
+  0%,100% { transform:translateY(0); }
+  50%      { transform:translateY(-4px); }
+}
+#orb-group { animation: float-bob 2.4s ease-in-out infinite; }
+
+/* Antenna wiggle during listen */
+@keyframes ant-wiggle {
+  0%,100% { transform:rotate(0deg); }
+  25%      { transform:rotate(-8deg); }
+  75%      { transform:rotate(8deg); }
+}
+.ant-l { transform-origin:bottom center; }
+.ant-r { transform-origin:bottom center; }
+.listening .ant-l { animation: ant-wiggle .5s ease-in-out infinite; }
+.listening .ant-r { animation: ant-wiggle .5s ease-in-out .25s infinite; }
+
+/* Eye pupil scan */
+@keyframes eye-scan {
+  0%,100% { transform:translateX(0); }
+  50%      { transform:translateX(3px); }
+}
+#orb-pupil { animation: eye-scan 2s ease-in-out infinite; }
+
+/* Blink */
+@keyframes eye-blink {
+  0%,90%,100% { transform:scaleY(1); }
+  95%          { transform:scaleY(.1); }
+}
+#orb-eye { transform-origin:center center; animation: eye-blink 4s ease-in-out infinite; }
+
+/* Glow ring around orb during states */
+@keyframes glow-pulse {
+  0%,100% { opacity:.25; r:33; }
+  50%      { opacity:.7;  r:37; }
+}
+#orb-glow { display:none; }
+.listening #orb-glow, .responding #orb-glow {
+  display:block;
+  animation: glow-pulse .8s ease-in-out infinite;
+}
+
+/* Listening rings only show during listen */
+.ring1,.ring2,.ring3 { display:none; }
+.listening .ring1,.listening .ring2,.listening .ring3 { display:block; }
+
+/* Speech waves only show during respond */
+.sw1,.sw2,.sw3 { display:none; }
+.responding .sw1,.responding .sw2,.responding .sw3 { display:block; }
+
+/* Status text in orb zone */
+.orb-status {
+  position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
+  font-size:6.5px;letter-spacing:2px;opacity:.5;white-space:nowrap;
+  font-family:'Share Tech Mono',monospace;color:#1c1c1c;
+}
+</style>
+</head>
+<body>
+
+<div class="label">THE PENCREUS &nbsp;·&nbsp; Waveshare ESP32-S3-RLCD-4.2 &nbsp;·&nbsp; 400×300 Reflective LCD</div>
+
+<!-- State control buttons -->
+<div class="state-bar">
+  <div class="label" style="margin:0">MODE:</div>
+  <button class="state-btn active" onclick="setState('idle')">IDLE</button>
+  <button class="state-btn"        onclick="setState('listening')">LISTENING</button>
+  <button class="state-btn"        onclick="setState('responding')">RESPONDING</button>
+</div>
+
+<div class="bezel">
+  <div class="display">
+    <!-- ═══ SPLASH SCREEN ═══ -->
+    <div class="splash" id="splash">
+      <img class="splash-char" src="logo.svg" alt="The Pencreus">
+      <div class="splash-title">THE PENCREUS</div>
+      <hr class="splash-rule">
+      <hr class="splash-rule2">
+      <div class="splash-boot">
+        &gt; ROBCO INDUSTRIES (TM) UNIFIED OS<br>
+        &gt; INITIALIZING SENSORS + NETWORK...<br>
+        &gt; CONNECTING TO VAULT-NET
+      </div>
+      <div class="splash-bar"></div>
+    </div>
+
+    <div class="screen">
+
+      <!-- HEADER -->
+      <div class="hdr">
+        <span class="brand-name">THE PENCREUS</span>
+        <span style="font-size:8px;letter-spacing:2px;opacity:.7;">&nbsp;//&nbsp; PERSONAL STATUS MONITOR</span>
+        <span class="cur">▮</span>
+      </div>
+
+      <!-- ZONE 1: Date / Clock -->
+      <div class="z-dt">
+        <div class="date-col">
+          <div class="day"  id="day-name">THU</div>
+          <div class="date" id="date-str">21 MAY 2026</div>
+          <div class="ntptag">NTP SYNC ✓</div>
+        </div>
+        <div class="clock-col">
+          <div id="clock">21:40:49</div>
+          <div class="tz">LOCAL · PST8PDT</div>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- ZONE 2: Weather -->
+      <div class="lbl">// OUTDOOR WEATHER &nbsp;[OWM]</div>
+      <div class="z-wx">
+        <div class="wx-l">
+          <div class="wx-cond">Partly Cloudy</div>
+          <div class="wx-temp">72°F</div>
+          <div class="wx-sub">
+            H: 78° &nbsp;·&nbsp; L: 61°
+            &nbsp;&nbsp;
+            <span title="sunrise">SR: 06:14</span>
+            &nbsp;·&nbsp;
+            <span title="sunset">SS: 20:47</span>
+          </div>
+        </div>
+        <div class="wx-r">
+          <div class="wx-stat">
+            <span class="k">HUMIDITY</span>
+            <span class="v">45%</span>
+          </div>
+          <div class="wx-stat">
+            <span class="k">FEELS</span>
+            <span class="v">69°F</span>
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- ZONE 3: Indoor sensor + ORB -->
+      <div class="lbl">// INTERIOR &nbsp;[SHTC3]</div>
+      <div class="z-in">
+        <div class="in-data">
+          <div class="in-row">
+            <span class="in-key">TEMP</span>
+            <span class="in-val">68.4°F</span>
+          </div>
+          <div class="in-row">
+            <span class="in-key">RH</span>
+            <span class="in-val">45.1%</span>
+          </div>
+        </div>
+
+        <!-- ORB ANIMATION ZONE -->
+        <div class="orb-zone">
+          <!-- viewBox tight around orb so he fills the cell -->
+          <svg id="orb-canvas" viewBox="14 8 78 88" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="3" stroke="#1c1c1c" stroke-width=".4" opacity=".2"/>
+              </pattern>
+            </defs>
+
+            <!-- Listening rings -->
+            <circle class="ring1" cx="55" cy="52" r="30" fill="none" stroke="#1c1c1c" stroke-width="1" opacity="0"/>
+            <circle class="ring2" cx="55" cy="52" r="30" fill="none" stroke="#1c1c1c" stroke-width=".7" opacity="0"/>
+            <circle class="ring3" cx="55" cy="52" r="30" fill="none" stroke="#1c1c1c" stroke-width=".5" opacity="0"/>
+
+            <!-- Speech arcs (respond — right side) -->
+            <g class="sw1" transform="translate(80,42)">
+              <path d="M0,10 Q8,5 8,10 Q8,15 0,10" fill="none" stroke="#1c1c1c" stroke-width="1.4"/>
+            </g>
+            <g class="sw2" transform="translate(80,42)">
+              <path d="M0,10 Q13,3 13,10 Q13,17 0,10" fill="none" stroke="#1c1c1c" stroke-width="1.1"/>
+            </g>
+            <g class="sw3" transform="translate(80,42)">
+              <path d="M0,10 Q19,1 19,10 Q19,19 0,10" fill="none" stroke="#1c1c1c" stroke-width=".7"/>
+            </g>
+
+            <!-- ORB GROUP (floats) -->
+            <g id="orb-group">
+
+              <!-- Glow ring -->
+              <circle id="orb-glow" cx="55" cy="52" r="34" fill="none"
+                stroke="#1c1c1c" stroke-width="1.5" opacity=".3"/>
+
+              <!-- LEFT ANTENNA -->
+              <g class="ant-l" transform-origin="48 30">
+                <line x1="48" y1="30" x2="42" y2="16" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="42" cy="14" r="2" fill="#1c1c1c"/>
+              </g>
+
+              <!-- RIGHT ANTENNA -->
+              <g class="ant-r" transform-origin="62 29">
+                <line x1="62" y1="29" x2="69" y2="15" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="69" y1="15" x2="74" y2="19" stroke="#1c1c1c" stroke-width="1" stroke-linecap="round"/>
+                <line x1="69" y1="15" x2="74" y2="11" stroke="#1c1c1c" stroke-width="1" stroke-linecap="round"/>
+              </g>
+
+              <!-- MAIN BODY -->
+              <circle cx="55" cy="52" r="30" fill="#ddd9c8" stroke="#1c1c1c" stroke-width="2"/>
+
+              <!-- Body panel arcs -->
+              <path d="M29,42 Q55,34 81,42" fill="none" stroke="#1c1c1c" stroke-width=".8" opacity=".4"/>
+              <path d="M28,52 Q55,62 82,52" fill="none" stroke="#1c1c1c" stroke-width=".8" opacity=".4"/>
+              <line x1="55" y1="22" x2="55" y2="82" stroke="#1c1c1c" stroke-width=".5" opacity=".2"/>
+              <line x1="25" y1="52" x2="85" y2="52" stroke="#1c1c1c" stroke-width=".5" opacity=".2"/>
+
+              <!-- Hatch -->
+              <circle cx="55" cy="52" r="29" fill="url(#hatch)" opacity=".4"/>
+
+              <!-- EYE HOUSING -->
+              <circle cx="55" cy="50" r="15" fill="#2a2a2a" stroke="#1c1c1c" stroke-width="1.4"/>
+              <circle cx="55" cy="50" r="13" fill="none" stroke="#555" stroke-width=".6"/>
+
+              <!-- EYE LENS -->
+              <g id="orb-eye">
+                <circle cx="55" cy="50" r="11" fill="#ddd9c8"/>
+                <circle cx="55" cy="50" r="8"  fill="none" stroke="#1c1c1c" stroke-width=".9"/>
+                <circle cx="55" cy="50" r="5.5" fill="#1c1c1c"/>
+              </g>
+
+              <!-- PUPIL HIGHLIGHT -->
+              <g id="orb-pupil">
+                <circle cx="53" cy="48" r="2" fill="#ddd9c8" opacity=".75"/>
+              </g>
+
+              <!-- THRUSTER RING -->
+              <ellipse cx="55" cy="81" rx="14" ry="4"  fill="none" stroke="#1c1c1c" stroke-width="1.4"/>
+              <ellipse cx="55" cy="81" rx="10" ry="2.5" fill="#1c1c1c" opacity=".15"/>
+              <line x1="41" y1="78" x2="37" y2="86" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
+              <line x1="69" y1="78" x2="73" y2="86" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
+              <line x1="55" y1="77" x2="55" y2="86" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
+
+              <!-- SIDE SENSOR PODS -->
+              <circle cx="25" cy="52" r="5.5" fill="#ddd9c8" stroke="#1c1c1c" stroke-width="1.2"/>
+              <circle cx="25" cy="52" r="3.2" fill="#1c1c1c" opacity=".6"/>
+              <circle cx="85" cy="52" r="5.5" fill="#ddd9c8" stroke="#1c1c1c" stroke-width="1.2"/>
+              <circle cx="85" cy="52" r="3.2" fill="#1c1c1c" opacity=".6"/>
+
+              <!-- Rivets -->
+              <circle cx="55" cy="22"  r="1.6" fill="#1c1c1c" opacity=".5"/>
+              <circle cx="55" cy="80"  r="1.4" fill="#1c1c1c" opacity=".5"/>
+              <circle cx="31" cy="39"  r="1.3" fill="#1c1c1c" opacity=".4"/>
+              <circle cx="79" cy="39"  r="1.3" fill="#1c1c1c" opacity=".4"/>
+
+            </g><!-- end orb-group -->
+          </svg>
+
+        </div>
+      </div>
+
+      <!-- STATUS BAR -->
+      <div class="status-bar">
+        <span>
+          <span class="s-dot"></span>
+          WIFI: OK &nbsp;|&nbsp; SSID: AROUTERSPACE
+        </span>
+        <span id="orb-status-txt">STANDBY</span>
+        <span>STATUS: NOMINAL</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="leds">
+    <div class="led g"></div>
+    <div class="led a" id="led-amber"></div>
+    <div class="led"   id="led-blue"></div>
+  </div>
+  <div class="bezel-brand">ESP32-S3-RLCD-4.2 &nbsp;·&nbsp; WAVESHARE</div>
+</div>
+
+<div class="label">Monochrome · No backlight · Sunlight readable · Hold KEY button to speak</div>
+
+<script>
+const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const MONS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+function tick() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+  document.getElementById('day-name').textContent = DAYS[n.getDay()];
+  document.getElementById('date-str').textContent =
+    `${String(n.getDate()).padStart(2,'0')} ${MONS[n.getMonth()]} ${n.getFullYear()}`;
+}
+tick(); setInterval(tick,1000);
+
+// ── Splash → main UI transition ──────────────────────────────
+const splash = document.getElementById('splash');
+// Auto-exit after 3 s, slide up
+setTimeout(() => {
+  splash.classList.add('exiting');
+  setTimeout(() => splash.remove(), 500);
+}, 3000);
+// Tap/click to skip
+splash.addEventListener('click', () => {
+  splash.style.animationDuration = '0.3s';
+  splash.classList.add('exiting');
+  setTimeout(() => splash.remove(), 350);
+});
+
+const orbZone = document.querySelector('.orb-zone');
+const statusTxt = document.getElementById('orb-status-txt');
+const ledAmber  = document.getElementById('led-amber');
+const ledBlue   = document.getElementById('led-blue');
+
+function setState(state) {
+  // Update buttons
+  document.querySelectorAll('.state-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent.toLowerCase() === state));
+
+  // Clear orb classes
+  orbZone.classList.remove('listening','responding');
+
+  // Apply state
+  if (state === 'listening') {
+    orbZone.classList.add('listening');
+    statusTxt.textContent = 'LISTENING...';
+    ledAmber.style.background = '#c80';
+    ledAmber.style.boxShadow  = '0 0 8px #c80,0 0 2px #c80';
+    ledBlue.style.background  = '#1a1a1a';
+    ledBlue.style.boxShadow   = '0 0 0 1px #333';
+  } else if (state === 'responding') {
+    orbZone.classList.add('responding');
+    statusTxt.textContent = 'TRANSMITTING...';
+    ledBlue.style.background  = '#1c3a5c';
+    ledBlue.style.boxShadow   = '0 0 8px #4af,0 0 2px #4af';
+    ledAmber.style.background = '#5c3d00';
+    ledAmber.style.boxShadow  = '0 0 6px #c80,0 0 1px #c80';
+  } else {
+    statusTxt.textContent = 'STANDBY';
+    ledAmber.style.background = '#5c3d00';
+    ledAmber.style.boxShadow  = '0 0 6px #c80,0 0 1px #c80';
+    ledBlue.style.background  = '#1a1a1a';
+    ledBlue.style.boxShadow   = '0 0 0 1px #333';
+  }
+}
+</script>
+</body>
+</html>
