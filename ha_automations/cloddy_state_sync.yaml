@@ -1,0 +1,82 @@
+# ────────────────────────────────────────────────────────────────────────────
+#  Cloddy State Sync — The Pencreus / ESP32-S3-RLCD-4.2
+#
+#  Drives the Cloddy orb animation on the display via MQTT messages.
+#  The ESP32 subscribes to topic:  pencreus/cloddy/state
+#  Valid payloads:  LISTENING | RESPONDING | IDLE
+#
+#  HOW TO ADD IN HOME ASSISTANT:
+#    Settings → Automations & Scenes → Create Automation
+#    → (three-dot menu) → Edit in YAML  → paste this block
+#    OR add to your config/automations.yaml file.
+#
+#  PREREQUISITES:
+#    • Mosquitto broker add-on installed and running
+#    • MQTT integration configured in HA
+#    • ESP32 flashed and on the same network
+# ────────────────────────────────────────────────────────────────────────────
+
+alias: "Pencreus - Cloddy State Sync"
+description: >
+  Publishes MQTT state messages to the Pencreus display whenever the
+  HA voice assist pipeline starts or ends a run.
+
+trigger:
+  # Pipeline starts (wake word heard / KEY pressed on ESP / App tapped)
+  - platform: event
+    event_type: assist_pipeline.run_start
+    id: run_start
+
+  # Pipeline ends (response delivered or error)
+  - platform: event
+    event_type: assist_pipeline.run_end
+    id: run_end
+
+action:
+  - choose:
+      # ── Pipeline just started → Cloddy LISTENING ─────────────────────────
+      - conditions:
+          - condition: trigger
+            id: run_start
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: pencreus/cloddy/state
+              payload: LISTENING
+              retain: false
+
+          # After a short pause (STT processing), switch to RESPONDING.
+          # Adjust delay to match your typical STT latency.
+          - delay:
+              seconds: 3
+
+          # Only go to RESPONDING if the pipeline is still running
+          # (run_end hasn't fired yet — this just mirrors the likely state)
+          - service: mqtt.publish
+            data:
+              topic: pencreus/cloddy/state
+              payload: RESPONDING
+              retain: false
+
+      # ── Pipeline finished → Cloddy IDLE ──────────────────────────────────
+      - conditions:
+          - condition: trigger
+            id: run_end
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: pencreus/cloddy/state
+              payload: IDLE
+              retain: false
+
+mode: restart   # restart if a new pipeline fires while delay is running
+
+# ────────────────────────────────────────────────────────────────────────────
+#  TESTING WITHOUT HA VOICE PIPELINE:
+#
+#  Developer Tools → MQTT → Publish a message:
+#    Topic:   pencreus/cloddy/state
+#    Payload: LISTENING     (or RESPONDING / IDLE)
+#
+#  The ESP32 should switch Cloddy's state within one loop() tick (~50 ms).
+# ────────────────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
 #include <math.h>
@@ -79,9 +80,48 @@ unsigned long lastWeatherMs = 0;
 unsigned long lastSensorMs  = 0;
 unsigned long lastClockMs   = 0;
 
+// ── MQTT ──────────────────────────────────────────────────────
+WiFiClient   wifiMqtt;
+PubSubClient mqtt(wifiMqtt);
+bool         mqttConnected  = false;
+unsigned long lastMqttMs    = 0;   // throttle reconnect attempts
+
 // ── KEY button ISR ────────────────────────────────────────────
 void IRAM_ATTR onKeyPress() {
   keyPressed = true;
+}
+
+// ── MQTT callback — fires on every incoming message ───────────
+// Payload: "LISTENING" | "RESPONDING" | "IDLE"
+void mqttCallback(char* topic, byte* payload, unsigned int len) {
+  if (len == 0 || len > 16) return;
+  char msg[17] = {0};
+  memcpy(msg, payload, len);
+
+  if      (strcmp(msg, "LISTENING")  == 0) dispState = STATE_LISTENING;
+  else if (strcmp(msg, "RESPONDING") == 0) dispState = STATE_RESPONDING;
+  else if (strcmp(msg, "IDLE")       == 0) dispState = STATE_IDLE;
+
+  Serial.printf("[MQTT] %s → %s\n", topic, msg);
+}
+
+// ── Connect / re-connect to MQTT broker ───────────────────────
+void connectMQTT() {
+  if (!wifiConnected) return;
+  mqtt.setServer(MQTT_BROKER, MQTT_PORT_N);
+  mqtt.setCallback(mqttCallback);
+
+  // LWT: if the ESP32 drops off, broker publishes "offline" automatically
+  if (mqtt.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS,
+                   MQTT_TOPIC_STATUS, 0, /*retain*/true, "offline")) {
+    mqtt.subscribe(MQTT_TOPIC_STATE);
+    mqtt.publish(MQTT_TOPIC_STATUS, "online", /*retain*/true);
+    mqttConnected = true;
+    Serial.println("[MQTT] connected, subscribed to " MQTT_TOPIC_STATE);
+  } else {
+    mqttConnected = false;
+    Serial.printf("[MQTT] connect failed, rc=%d\n", mqtt.state());
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -361,10 +401,11 @@ void renderDisplay() {
   const char* stateStr =
     (dispState == STATE_LISTENING)  ? "LISTENING" :
     (dispState == STATE_RESPONDING) ? "TRANSMIT"  : "STANDBY";
-  char statusBuf[80];
+  char statusBuf[96];
   snprintf(statusBuf, sizeof(statusBuf),
-           "WIFI:%s  %s  %s  STATUS:%s",
+           "WIFI:%s  MQ:%s  %s  %s  STATUS:%s",
            wifiConnected ? "OK" : "NC",
+           mqttConnected ? "OK" : "NC",
            wifiConnected ? WiFi.SSID().c_str() : "---",
            stateStr,
            weather.valid ? "NOMINAL" : "DEGRADED");
@@ -539,6 +580,9 @@ void setup() {
   renderSplash(wifiConnected ? "> WIFI OK. SYNCING NTP..." : "> WIFI FAILED. RTC MODE.");
   syncNTP();
 
+  // MQTT — connect right after WiFi is up
+  connectMQTT();
+
   // First data pull
   readSensors();
   fetchWeather();
@@ -565,6 +609,18 @@ void loop() {
     if (wifiConnected && !ntpSynced) syncNTP();
   } else {
     wifiConnected = true;
+  }
+
+  // ── MQTT watchdog + pump ───────────────────────────────────
+  if (wifiConnected) {
+    mqttConnected = mqtt.connected();
+    if (!mqttConnected && (now - lastMqttMs >= MQTT_RECONNECT_MS)) {
+      connectMQTT();
+      lastMqttMs = now;
+    }
+    mqtt.loop();   // must be called every loop to service incoming messages
+  } else {
+    mqttConnected = false;
   }
 
   // ── Sensor update ─────────────────────────────────────────

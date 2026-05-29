@@ -31,6 +31,12 @@
 #define INTERVAL_SENSOR    30000UL   // 30 sec
 #define INTERVAL_CLOCK      1000UL   // 1 sec
 
+// ── MQTT ──────────────────────────────────────────────────────
+#define MQTT_CLIENT_ID     "pencreus-rlcd"
+#define MQTT_TOPIC_STATE   "pencreus/cloddy/state"   // HA publishes here
+#define MQTT_TOPIC_STATUS  "pencreus/status"          // LWT + online beacon
+#define MQTT_RECONNECT_MS  5000UL
+
 // ── UI layout constants ───────────────────────────────────────
 #define HEADER_H        22
 #define ROW1_Y          23
