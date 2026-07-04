@@ -24,6 +24,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoOTA.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -622,6 +623,13 @@ void setup() {
   renderSplash(wifiConnected ? "> WIFI OK. SYNCING NTP..." : "> WIFI FAILED. RTC MODE.");
   syncNTP();
 
+  // OTA — advertise on mDNS so arduino-cli can find us by hostname
+  if (wifiConnected) {
+    ArduinoOTA.setHostname(OTA_HOSTNAME);
+    ArduinoOTA.setPassword(OTA_PASSWORD);
+    ArduinoOTA.begin();
+  }
+
   // MQTT — connect right after WiFi is up
   connectMQTT();
 
@@ -653,6 +661,9 @@ void loop() {
   } else {
     wifiConnected = true;
   }
+
+  // ── OTA handler ───────────────────────────────────────────
+  ArduinoOTA.handle();
 
   // ── MQTT watchdog + pump ───────────────────────────────────
   if (wifiConnected) {
