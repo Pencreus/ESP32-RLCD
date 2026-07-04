@@ -26,10 +26,19 @@
 // POSIX TZ string — Pacific Time with automatic DST
 #define TZ_POSIX       "PST8PDT,M3.2.0,M11.1.0"
 
+// ── Battery ADC ───────────────────────────────────────────────
+// GPIO 4 = ADC1 channel 3, behind a 3:1 voltage divider
+// 3.0 V → 0%   4.12 V → 100%   (18650 LiPo)
+#define BAT_ADC_PIN     4
+#define BAT_V_MIN    3.0f
+#define BAT_V_MAX    4.12f
+#define BAT_DIVIDER  3.0f   // board voltage divider ratio
+
 // ── Refresh Intervals (milliseconds) ─────────────────────────
 #define INTERVAL_WEATHER  300000UL   // 5 min — OWM free tier ~60 req/min
 #define INTERVAL_SENSOR    30000UL   // 30 sec
 #define INTERVAL_CLOCK      1000UL   // 1 sec
+#define INTERVAL_BATTERY   60000UL   // 1 min (battery changes slowly)
 
 // ── MQTT ──────────────────────────────────────────────────────
 #define MQTT_CLIENT_ID     "pencreus-rlcd"

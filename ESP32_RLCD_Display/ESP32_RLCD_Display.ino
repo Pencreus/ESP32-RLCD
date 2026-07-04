@@ -76,9 +76,12 @@ bool wifiConnected  = false;
 bool ntpSynced      = false;
 bool weatherFetched = false;
 
-unsigned long lastWeatherMs = 0;
-unsigned long lastSensorMs  = 0;
-unsigned long lastClockMs   = 0;
+unsigned long lastWeatherMs  = 0;
+unsigned long lastSensorMs   = 0;
+unsigned long lastClockMs    = 0;
+unsigned long lastBatteryMs  = 0;
+
+uint8_t batteryLevel = 255;   // 255 = not yet read
 
 // ── MQTT ──────────────────────────────────────────────────────
 WiFiClient   wifiMqtt;
@@ -89,6 +92,24 @@ unsigned long lastMqttMs    = 0;   // throttle reconnect attempts
 // ── KEY button ISR ────────────────────────────────────────────
 void IRAM_ATTR onKeyPress() {
   keyPressed = true;
+}
+
+// ── Battery read — GPIO 4 ADC, 3:1 voltage divider ───────────
+// Average 10 samples to reduce ADC noise.
+void readBattery() {
+  uint32_t sum = 0;
+  for (int i = 0; i < 10; i++) {
+    sum += analogReadMilliVolts(BAT_ADC_PIN);
+    delayMicroseconds(200);
+  }
+  float vol = (sum / 10.0f) * BAT_DIVIDER / 1000.0f;
+  if (vol < BAT_V_MIN) {
+    batteryLevel = 0;
+  } else if (vol >= BAT_V_MAX) {
+    batteryLevel = 100;
+  } else {
+    batteryLevel = (uint8_t)(((vol - BAT_V_MIN) / (BAT_V_MAX - BAT_V_MIN)) * 100.0f);
+  }
 }
 
 // ── MQTT callback — fires on every incoming message ───────────
@@ -253,12 +274,33 @@ void renderDisplay() {
   // ╚═══════════════════════════════════════════════════════════╝
   u->drawBox(0, 0, RLCD_WIDTH, HEADER_H);
   u->setDrawColor(0);
-  // Brand name — largest font that fits in the header bar
+  // Brand name
   u->setFont(u8g2_font_profont17_mf);
   u->drawStr(4, 16, "THE PENCREUS");
-  // Subtitle — smaller, right-aligned feel
+  // Subtitle
   u->setFont(u8g2_font_profont10_mf);
   u->drawStr(148, 14, "//  PERSONAL STATUS MONITOR");
+
+  // ── Battery indicator (right side of header) ──────────────
+  // Icon body: 26×12 at x=367, y=5. Nib: 3×6 at x=393, y=8.
+  // Fill bar: up to 22px inside body (2px padding each side).
+  {
+    char batBuf[6];
+    if (batteryLevel == 255) {
+      snprintf(batBuf, sizeof(batBuf), "---");
+    } else {
+      snprintf(batBuf, sizeof(batBuf), "%d%%", batteryLevel);
+    }
+    u->setFont(u8g2_font_profont10_mf);
+    int btw = u->getStrWidth(batBuf);
+    u->drawStr(363 - btw, 15, batBuf);   // right-align text to 4px before body
+    u->drawFrame(367, 5, 26, 12);        // battery outline
+    u->drawBox(393, 8, 3, 6);            // nib
+    if (batteryLevel != 255 && batteryLevel > 0) {
+      int fw = batteryLevel * 22 / 100;
+      u->drawBox(369, 7, fw, 8);         // fill bar
+    }
+  }
   u->setDrawColor(1);
 
   // ╔═══════════════════════════════════════════════════════════╗
@@ -584,6 +626,7 @@ void setup() {
   connectMQTT();
 
   // First data pull
+  readBattery();
   readSensors();
   fetchWeather();
 }
@@ -621,6 +664,12 @@ void loop() {
     mqtt.loop();   // must be called every loop to service incoming messages
   } else {
     mqttConnected = false;
+  }
+
+  // ── Battery update ────────────────────────────────────────
+  if (now - lastBatteryMs >= INTERVAL_BATTERY) {
+    readBattery();
+    lastBatteryMs = now;
   }
 
   // ── Sensor update ─────────────────────────────────────────
